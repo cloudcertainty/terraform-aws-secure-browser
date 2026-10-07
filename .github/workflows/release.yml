@@ -1,0 +1,90 @@
+name: release
+
+# Releases the module: Actions -> release -> Run workflow -> version X.Y.Z.
+#
+# 1. Checks the version: X.Y.Z, not tagged yet, a "## X.Y.Z" section in CHANGELOG.md, and
+#    (warning only) that product_version defaults to the same release.
+# 2. Runs the same checks as CI: fmt, validate (module and examples), terraform test, and
+#    terraform-docs (README up to date).
+# 3. Creates the annotated tag vX.Y.Z on the commit it ran on and a GitHub Release whose notes
+#    are that CHANGELOG section.
+#
+# The Terraform Registry publishes every new vX.Y.Z tag of a registered module on its own.
+# Registering it is a one-time step in the Registry (Publish -> Module -> this repository).
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Module version to release (X.Y.Z, normally the product release it deploys by default)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Check the version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          VERSION="${VERSION#v}"
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::version must be X.Y.Z (got '$VERSION')"; exit 1; }
+          if git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
+            echo "::error::tag v$VERSION already exists"; exit 1
+          fi
+          grep -qx "## $VERSION" CHANGELOG.md || { echo "::error::CHANGELOG.md has no '## $VERSION' section"; exit 1; }
+          default="$(awk '/^variable "product_version"/ { f = 1 } f && /^ *default *=/ { gsub(/"/, "", $3); print $3; exit }' variables.tf)"
+          if [[ "$default" != "$VERSION" ]]; then
+            echo "::warning::product_version defaults to $default, not $VERSION"
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: fmt
+        run: terraform fmt -recursive -check -diff
+
+      - name: validate module and examples
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate
+          for d in examples/*/; do
+            terraform -chdir="$d" init -backend=false -input=false
+            terraform -chdir="$d" validate
+          done
+
+      - name: test (mock provider, no AWS credentials)
+        run: terraform test
+
+      - name: README inputs and outputs are up to date (terraform-docs)
+        run: |
+          docker run --rm -v "$PWD:/terraform-docs" -w /terraform-docs \
+            quay.io/terraform-docs/terraform-docs:0.20.0 --output-check .
+
+      - name: Release notes from CHANGELOG.md
+        run: |
+          awk -v v="## $VERSION" '$0 == v { f = 1; next } f && /^## / { exit } f' CHANGELOG.md > release-notes.md
+          [[ -s release-notes.md ]] || { echo "::error::the '## $VERSION' section of CHANGELOG.md is empty"; exit 1; }
+          cat release-notes.md
+
+      - name: Tag and publish the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "v$VERSION" -m "v$VERSION"
+          git push origin "v$VERSION"
+          gh release create "v$VERSION" --verify-tag --title "v$VERSION" --notes-file release-notes.md
