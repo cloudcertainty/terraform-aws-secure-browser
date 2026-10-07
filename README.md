@@ -1,6 +1,8 @@
 # Cloud Certainty Secure Browser – Terraform module
 
-Deploy [Cloud Certainty Secure Browser](https://cloudcertainty.com) into your own AWS account with Terraform or OpenTofu.
+Deploy [Cloud Certainty Secure Browser](https://cloudcertainty.com/secure-browser/) into your own AWS account with Terraform or OpenTofu.
+
+**Links:** [Product page](https://cloudcertainty.com/secure-browser/) · [Documentation](https://cloudcertainty.com/secure-browser/docs/)
 
 Cloud Certainty Secure Browser is zero-trust remote browser isolation that runs entirely in your account:
 - Each user session is an ephemeral Chromium container with no inbound network access.
