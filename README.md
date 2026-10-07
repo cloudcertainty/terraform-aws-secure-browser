@@ -1,5 +1,7 @@
 # Cloud Certainty Secure Browser – Terraform module
 
+![Cloud Certainty Secure Browser: zero-trust browser isolation that runs in your AWS account](https://raw.githubusercontent.com/cloudcertainty/terraform-aws-secure-browser/main/images/banner.png)
+
 Deploy [Cloud Certainty Secure Browser](https://cloudcertainty.com/secure-browser/) into your own AWS account with Terraform or OpenTofu.
 
 **Links:** [Product page](https://cloudcertainty.com/secure-browser/) · [Documentation](https://cloudcertainty.com/secure-browser/docs/)
@@ -9,11 +11,21 @@ Cloud Certainty Secure Browser is zero-trust remote browser isolation that runs 
 - The session is streamed to the user's browser over encrypted WebRTC.
 - Admins control clipboard, file transfer, printing, URL access, timeouts and IP allowlists for each user or group.
 
+![Architecture: users sign in to the portal in your AWS account; each session is an isolated Chromium container with no inbound access, streamed back as encrypted pixels](https://raw.githubusercontent.com/cloudcertainty/terraform-aws-secure-browser/main/images/architecture.png)
+
 This module deploys the product's official CloudFormation template as a single `aws_cloudformation_stack`. The template is the same one you would launch from AWS Marketplace, at the release you pin with `product_version`. The module adds plan-time validation and Terraform-friendly inputs and outputs.
 
 **Any Region.** Deploy in any AWS Region that has Kinesis Video Streams WebRTC, Amplify Hosting, Amazon Cognito and ECS Fargate: just configure the AWS provider for that Region. The template is always read from the vendor's public bucket in us-east-1 (`https://cloudcertainty-secure-browser-us-east-1.s3.us-east-1.amazonaws.com/<product_version>/main.yaml`), which CloudFormation accepts for a stack in any Region.
 
 **How the code gets into your account.** All Lambda and web code ships inside the subscription-protected AWS Marketplace container image; nothing executable is publicly downloadable. When the stack is created, and on every upgrade, it runs a one-off Fargate *installer* task from that image in your `task_subnet_ids` (about a minute, billed like one session-minute). The task checks your Marketplace subscription and copies the code into a private, encrypted S3 bucket in your account (stack output `ArtifactsBucketName`), from which the Lambda functions and the portal are deployed. The bucket is emptied and deleted with the stack.
+
+## What your users and admins get
+
+| A browser session, streamed to the user's tab | An admin policy profile |
+|---|---|
+| ![A Secure Browser session with the toolbar: paste, upload, full screen and end session](https://raw.githubusercontent.com/cloudcertainty/terraform-aws-secure-browser/main/images/session.png) | ![The admin console: clipboard, file and printing controls and timeouts of a policy profile](https://raw.githubusercontent.com/cloudcertainty/terraform-aws-secure-browser/main/images/admin-profile.png) |
+
+More screenshots, step by step, are in the [documentation](https://cloudcertainty.com/secure-browser/docs/).
 
 ## Prerequisites
 
@@ -54,12 +66,20 @@ Open `portal_url`, sign in, and start a session. The admin console is at `<porta
 AWS doesn't let IAM Identity Center custom SAML applications be created as code, so this takes two applies:
 
 1. `terraform apply` with `saml_metadata_url` left empty.
-2. In IAM Identity Center, choose **Applications → Add application → Add custom SAML 2.0 application**:
+2. In IAM Identity Center (the organization instance, in your management account), choose **Applications → Add application → I have an application I want to set up → SAML 2.0**:
+   - **Display name:** `Cloud Certainty Secure Browser`; copy the **IAM Identity Center SAML metadata file** URL.
+   - **Application start URL:** the `portal_url` output. The access-portal tile needs it.
    - **Application ACS URL:** the `saml_acs_url` output.
    - **Application SAML audience:** the `saml_audience_uri` output.
    - **Attribute mappings:** `Subject` → `${user:email}` (format `emailAddress`), and `email` → `${user:email}`.
-   - Assign users or groups, then copy the **IAM Identity Center SAML metadata file** URL.
-3. Set `saml_metadata_url` to that URL and run `terraform apply` again.
+   - Assign users or groups, including the `bootstrap_admin_email` user.
+3. Set `saml_metadata_url` to the metadata URL and run `terraform apply` again.
+
+Assigned users then get a **Cloud Certainty Secure Browser** tile in the AWS access portal that signs them straight in:
+
+![The Cloud Certainty Secure Browser tile in the AWS access portal](https://raw.githubusercontent.com/cloudcertainty/terraform-aws-secure-browser/main/images/access-portal-tile.png)
+
+The [getting started guide](https://cloudcertainty.com/secure-browser/docs/getting-started/#iam-identity-center) shows every step with screenshots.
 
 Use the same steps for any SAML 2.0 identity provider with `identity_provider = "SAML"`.
 
