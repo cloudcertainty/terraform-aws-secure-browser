@@ -3,6 +3,33 @@
 All notable changes to this module are documented here. The module version
 tracks the Cloud Certainty Secure Browser release it deploys by default.
 
+## 0.2.0
+
+- Deploys Cloud Certainty Secure Browser 0.2.0 by default (`product_version`), from the new AWS
+  Marketplace listing (pricing v2). Subscribe to
+  [the listing](https://aws.amazon.com/marketplace/pp/prodview-cn4gl3frr4t66) before you apply:
+  0.2.0 pulls its image from the new listing's repository, so a subscription to the earlier
+  listing is not enough.
+- Pricing v2 is chosen in the product's admin portal (Settings, Billing plan): pay as you go per
+  active user and session minute, or Team and Business plans; yearly contracts are detected
+  automatically. No module input is needed.
+- If you filter outbound traffic, allow HTTPS to AWS KMS and the AWS Marketplace agreement
+  service in us-east-1 as well (the product's code is sealed with a KMS key).
+- `outbound_access`: which outbound ports the browser sessions may use (the
+  template's `TaskOutboundAccess`, new in product release 0.1.7): `HTTPS`
+  (default, TCP and UDP 443), `Web` (adds TCP 80), `All`, or up to 10 TCP ports
+  or ranges such as `"80,8443,3000-3100"`. Left at `null` it isn't passed, so the
+  module still works with older `product_version` templates.
+
+## 0.1.7 (not released)
+
+- Folded into 0.2.0.
+- `outbound_access`: which outbound ports the browser sessions may use (the
+  template's `TaskOutboundAccess`, new in product release 0.1.7): `HTTPS`
+  (default, TCP and UDP 443), `Web` (adds TCP 80), `All`, or up to 10 TCP ports
+  or ranges such as `"80,8443,3000-3100"`. Left at `null` it isn't passed, so the
+  module still works with older `product_version` templates.
+
 ## 0.1.6
 
 - First release: deploys Cloud Certainty Secure Browser 0.1.6 into your AWS

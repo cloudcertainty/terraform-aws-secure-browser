@@ -28,6 +28,7 @@ locals {
     VpcId                   = var.vpc_id
     TaskSubnetIds           = join(",", var.task_subnet_ids)
     TaskSubnetsArePublic    = tostring(var.task_subnets_are_public)
+    TaskOutboundAccess      = var.outbound_access
     IdentityProvider        = var.identity_provider
     SamlMetadataUrl         = var.saml_metadata_url
     OidcIssuer              = var.oidc_issuer

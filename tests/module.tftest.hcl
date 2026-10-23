@@ -30,7 +30,7 @@ run "defaults" {
     error_message = "unexpected stack name"
   }
   assert {
-    condition     = aws_cloudformation_stack.this.template_url == "https://cloudcertainty-secure-browser-us-east-1.s3.us-east-1.amazonaws.com/0.1.6/main.yaml"
+    condition     = aws_cloudformation_stack.this.template_url == "https://cloudcertainty-secure-browser-us-east-1.s3.us-east-1.amazonaws.com/0.2.0/main.yaml"
     error_message = "template URL must be the us-east-1 release bucket whatever the deploy Region: ${aws_cloudformation_stack.this.template_url}"
   }
   assert {
@@ -92,7 +92,7 @@ run "default_template_url_and_no_vendor_parameters" {
   command = plan
 
   assert {
-    condition     = aws_cloudformation_stack.this.template_url == "https://cloudcertainty-secure-browser-us-east-1.s3.us-east-1.amazonaws.com/0.1.6/main.yaml"
+    condition     = aws_cloudformation_stack.this.template_url == "https://cloudcertainty-secure-browser-us-east-1.s3.us-east-1.amazonaws.com/0.2.0/main.yaml"
     error_message = "unexpected template URL: ${aws_cloudformation_stack.this.template_url}"
   }
   assert {
@@ -264,7 +264,7 @@ run "tag_only_marketplace_image_rejected" {
   command = plan
 
   variables {
-    image_uri = "709825985650.dkr.ecr.us-east-1.amazonaws.com/cloud-certainty/secure-browser:0.1.6"
+    image_uri = "709825985650.dkr.ecr.us-east-1.amazonaws.com/cloud-certainty/secure-browser-marketplace:0.1.6"
   }
 
   expect_failures = [var.image_uri]
@@ -278,4 +278,36 @@ run "empty_owner_tag_rejected" {
   }
 
   expect_failures = [var.tags]
+}
+
+run "outbound_access_not_passed_by_default" {
+  command = plan
+
+  assert {
+    condition     = !contains(keys(aws_cloudformation_stack.this.parameters), "TaskOutboundAccess")
+    error_message = "outbound_access must not be passed unless set (older templates lack the parameter)"
+  }
+}
+
+run "outbound_access_port_list_mapped" {
+  command = plan
+
+  variables {
+    outbound_access = "80,8443,3000-3100"
+  }
+
+  assert {
+    condition     = aws_cloudformation_stack.this.parameters["TaskOutboundAccess"] == "80,8443,3000-3100"
+    error_message = "outbound_access must be passed as TaskOutboundAccess"
+  }
+}
+
+run "outbound_access_with_spaces_rejected" {
+  command = plan
+
+  variables {
+    outbound_access = "80, 443"
+  }
+
+  expect_failures = [var.outbound_access]
 }

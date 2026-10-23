@@ -60,6 +60,17 @@ variable "task_subnets_are_public" {
   default     = false
 }
 
+variable "outbound_access" {
+  description = "Outbound traffic the browser sessions may send (passed as the template's TaskOutboundAccess; needs product_version 0.1.7 or later). HTTPS: TCP and UDP 443 only. Web: also TCP 80. All: every port and protocol. Or up to 10 comma-separated TCP ports or ranges without spaces, for example \"80,8443,3000-3100\", added to 443. Null keeps the template default (HTTPS)."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.outbound_access == null || can(regex("^(HTTPS|Web|All|[0-9]{1,5}(-[0-9]{1,5})?(,[0-9]{1,5}(-[0-9]{1,5})?){0,9})$", var.outbound_access))
+    error_message = "outbound_access must be null, HTTPS, Web, All, or up to 10 comma-separated TCP ports or ranges without spaces, for example \"80,8443,3000-3100\"."
+  }
+}
+
 ################################################################################
 # Identity
 ################################################################################
@@ -237,7 +248,7 @@ variable "update_notification_email" {
 variable "product_version" {
   description = "Release of Cloud Certainty Secure Browser to deploy. Selects the release's CloudFormation template, which pins the matching application artifacts and container image. Each module release defaults to the product release it was tested with, so upgrading usually means raising the module version."
   type        = string
-  default     = "0.1.6"
+  default     = "0.2.0"
 
   validation {
     condition     = can(regex("^[A-Za-z0-9._-]{1,64}$", var.product_version))
