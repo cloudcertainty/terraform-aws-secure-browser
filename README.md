@@ -39,7 +39,7 @@ More screenshots, step by step, are in the [documentation](https://cloudcertaint
 ```hcl
 module "secure_browser" {
   source  = "cloudcertainty/secure-browser/aws"
-  version = "~> 0.1"
+  version = "~> 0.3"
 
   name_prefix           = "acme"
   vpc_id                = "vpc-0123456789abcdef0"
@@ -104,6 +104,23 @@ module "secure_browser" {
 
 Register `https://<cognito_domain output>/oauth2/idpresponse` as the redirect URI in your identity provider. CloudFormation reads the secret at deploy time, so the identity running Terraform needs `secretsmanager:GetSecretValue` on it.
 
+### Signing in through Cloud Certainty Hub
+
+When Secure Browser is installed through [Cloud Certainty Hub](https://cloudcertainty.com), users can sign in through the hub: the hub's Cognito user pool federates once to IAM Identity Center in the account, and every product installed through the hub signs users in through it over OIDC (single sign-on). The hub creates an app client and a client secret for the stack and passes them in:
+
+```hcl
+module "secure_browser" {
+  source = "cloudcertainty/secure-browser/aws"
+  # ...
+  identity_provider      = "CloudCertaintyHub"
+  oidc_issuer            = "<the hub user pool's issuer>"
+  oidc_client_id         = "<the app client the hub created for this stack>"
+  oidc_client_secret_arn = "<ARN of the secret the hub wrote (cloudcertainty-hub/STACK/oidc-client)>"
+}
+```
+
+This is an extra option: the default stays `IAMIdentityCenter` and the other options are unchanged. `saml_metadata_url` must be empty and `oidc_email_verified_claim` is not used. Switching between `CloudCertaintyHub` and any other option is a normal `terraform apply`; the bootstrap admin keeps the role after their first sign-in through the new option.
+
 ### Evaluating without an identity provider
 
 `identity_provider = "CognitoOnly"` creates users in a Cognito user pool. The bootstrap admin receives an invitation email. See [examples/cognito-only](examples/cognito-only).
@@ -139,20 +156,20 @@ Generated from the module's variables and outputs with [terraform-docs](https://
 | <a name="input_browser_task_size"></a> [browser\_task\_size](#input\_browser\_task\_size) | CPU and memory of each browser session: 1vCPU-2GB, 2vCPU-4GB or 4vCPU-8GB. | `string` | `"2vCPU-4GB"` | no |
 | <a name="input_cloudformation_role_arn"></a> [cloudformation\_role\_arn](#input\_cloudformation\_role\_arn) | Optional IAM role CloudFormation assumes to create the stack (service role). Without it, CloudFormation uses the credentials Terraform runs with. | `string` | `null` | no |
 | <a name="input_cpu_architecture"></a> [cpu\_architecture](#input\_cpu\_architecture) | CPU architecture of the browser tasks. This release supports X86\_64; ARM64 (Graviton) returns in a later release. | `string` | `"X86_64"` | no |
-| <a name="input_identity_provider"></a> [identity\_provider](#input\_identity\_provider) | How users sign in: IAMIdentityCenter, SAML, OIDC or CognitoOnly. | `string` | `"IAMIdentityCenter"` | no |
+| <a name="input_identity_provider"></a> [identity\_provider](#input\_identity\_provider) | How users sign in: IAMIdentityCenter, SAML, OIDC, CognitoOnly or CloudCertaintyHub. CloudCertaintyHub signs users in through the Cloud Certainty Hub in this account (single sign-on with every product installed through it); it needs the three OIDC inputs, which the hub provides. | `string` | `"IAMIdentityCenter"` | no |
 | <a name="input_image_uri"></a> [image\_uri](#input\_image\_uri) | Override the browser container image (passed as the template's ImageUriOverride). Leave null to use the image pinned by digest in the product\_version template. Set only when Cloud Certainty support asks you to; only digest-pinned images from the AWS Marketplace registry are accepted. | `string` | `null` | no |
 | <a name="input_kms_key_arn"></a> [kms\_key\_arn](#input\_kms\_key\_arn) | Optional customer managed KMS key for DynamoDB, CloudWatch Logs, the update SNS topic and the stack's private artifacts bucket. The key policy must allow CloudWatch Logs and SNS to use it, and the identity running Terraform (or cloudformation\_role\_arn) needs kms:Decrypt on it. | `string` | `""` | no |
 | <a name="input_log_retention_days"></a> [log\_retention\_days](#input\_log\_retention\_days) | CloudWatch Logs retention for session, API and audit logs. | `number` | `90` | no |
 | <a name="input_max_concurrent_sessions"></a> [max\_concurrent\_sessions](#input\_max\_concurrent\_sessions) | Default limit on concurrent sessions across all users. Admins can change it later in the admin console. | `number` | `10` | no |
-| <a name="input_name_prefix"></a> [name\_prefix](#input\_name\_prefix) | Prefix for every resource the stack creates (lowercase letters, digits and hyphens; 2-20 characters, starting with a letter). | `string` | `"ztb"` | no |
-| <a name="input_oidc_client_id"></a> [oidc\_client\_id](#input\_oidc\_client\_id) | OIDC client ID (identity\_provider = OIDC only). | `string` | `""` | no |
-| <a name="input_oidc_client_secret_arn"></a> [oidc\_client\_secret\_arn](#input\_oidc\_client\_secret\_arn) | ARN of a Secrets Manager secret whose SecretString is the OIDC client secret (identity\_provider = OIDC only). CloudFormation resolves it at deploy time, so the secret is never stored in Terraform state. | `string` | `""` | no |
-| <a name="input_oidc_email_verified_claim"></a> [oidc\_email\_verified\_claim](#input\_oidc\_email\_verified\_claim) | OIDC claim that says whether the IdP verified the user's email (identity\_provider = OIDC only). Users whose email is not verified are refused. Keep email\_verified for Okta, Google, Auth0 and most IdPs; use xms\_edov for Microsoft Entra ID. | `string` | `"email_verified"` | no |
-| <a name="input_oidc_issuer"></a> [oidc\_issuer](#input\_oidc\_issuer) | OIDC issuer URL (identity\_provider = OIDC only). | `string` | `""` | no |
+| <a name="input_name_prefix"></a> [name\_prefix](#input\_name\_prefix) | Prefix for every resource the stack creates (lowercase letters, digits and hyphens; 2-20 characters, starting with a letter). Module versions up to 0.2.0 defaulted to "ztb". Never change it on an existing stack: that replaces every named resource, including the Cognito user pool and all its users. | `string` | `"cc-securebrowser"` | no |
+| <a name="input_oidc_client_id"></a> [oidc\_client\_id](#input\_oidc\_client\_id) | OIDC client ID (identity\_provider = OIDC or CloudCertaintyHub only). | `string` | `""` | no |
+| <a name="input_oidc_client_secret_arn"></a> [oidc\_client\_secret\_arn](#input\_oidc\_client\_secret\_arn) | ARN of a Secrets Manager secret whose SecretString is the OIDC client secret (identity\_provider = OIDC or CloudCertaintyHub only). CloudFormation resolves it at deploy time, so the secret is never stored in Terraform state. | `string` | `""` | no |
+| <a name="input_oidc_email_verified_claim"></a> [oidc\_email\_verified\_claim](#input\_oidc\_email\_verified\_claim) | OIDC claim that says whether the IdP verified the user's email (identity\_provider = OIDC only). Users whose email is not verified are refused. Keep email\_verified for Okta, Google, Auth0 and most IdPs; use xms\_edov for Microsoft Entra ID. Not used with CloudCertaintyHub (the hub's email\_verified is mapped). | `string` | `"email_verified"` | no |
+| <a name="input_oidc_issuer"></a> [oidc\_issuer](#input\_oidc\_issuer) | OIDC issuer URL (identity\_provider = OIDC or CloudCertaintyHub only). | `string` | `""` | no |
 | <a name="input_outbound_access"></a> [outbound\_access](#input\_outbound\_access) | Outbound traffic the browser sessions may send (passed as the template's TaskOutboundAccess; needs product\_version 0.1.7 or later). HTTPS: TCP and UDP 443 only. Web: also TCP 80. All: every port and protocol. Or up to 10 comma-separated TCP ports or ranges without spaces, for example "80,8443,3000-3100", added to 443. Null keeps the template default (HTTPS). | `string` | `null` | no |
-| <a name="input_product_version"></a> [product\_version](#input\_product\_version) | Release of Cloud Certainty Secure Browser to deploy. Selects the release's CloudFormation template, which pins the matching application artifacts and container image. Each module release defaults to the product release it was tested with, so upgrading usually means raising the module version. | `string` | `"0.2.0"` | no |
+| <a name="input_product_version"></a> [product\_version](#input\_product\_version) | Release of Cloud Certainty Secure Browser to deploy. Selects the release's CloudFormation template, which pins the matching application artifacts and container image. Each module release defaults to the product release it was tested with, so upgrading usually means raising the module version. | `string` | `"0.3.0"` | no |
 | <a name="input_saml_metadata_url"></a> [saml\_metadata\_url](#input\_saml\_metadata\_url) | SAML metadata URL of your IAM Identity Center application or SAML IdP. Leave empty for the first apply, create the SAML application from the saml\_acs\_url and saml\_audience\_uri outputs, then set this and apply again. | `string` | `""` | no |
-| <a name="input_stack_name"></a> [stack\_name](#input\_stack\_name) | Name of the CloudFormation stack. Defaults to "<name\_prefix>-secure-browser". | `string` | `null` | no |
+| <a name="input_stack_name"></a> [stack\_name](#input\_stack\_name) | Name of the CloudFormation stack. Defaults to "<name\_prefix>-secure-browser", except with the default name\_prefix "cc-securebrowser", where it is "cc-secure-browser" (the name Cloud Certainty Hub uses). A new name replaces the stack, so never change it on an existing stack. | `string` | `null` | no |
 | <a name="input_tags"></a> [tags](#input\_tags) | Tags applied to the stack and propagated to its resources. The Owner, CostCenter and Environment keys are also passed to the template's explicit tag parameters (TagOwner, TagCostCenter, TagEnvironment). | `map(string)` | `{}` | no |
 | <a name="input_task_subnets_are_public"></a> [task\_subnets\_are\_public](#input\_task\_subnets\_are\_public) | Set to true only if task\_subnet\_ids are public subnets. Tasks then get a public IP for outbound traffic; their security group still allows no inbound traffic. | `bool` | `false` | no |
 | <a name="input_template_url"></a> [template\_url](#input\_template\_url) | Override the S3 URL of the CloudFormation template. By default it is https://cloudcertainty-secure-browser-us-east-1.s3.us-east-1.amazonaws.com/<product\_version>/main.yaml, whatever Region you deploy to. | `string` | `null` | no |
@@ -207,9 +224,35 @@ Each module version `X.Y.Z` deploys Cloud Certainty Secure Browser release `X.Y.
   ```
 - **Renovate.** Renovate's `terraform` manager detects registry modules out of the box; with an exact `version = "X.Y.Z"` it opens a pull request per release (group or schedule it with a `packageRules` entry matching `cloudcertainty/secure-browser/aws`).
 
-For the bots to propose every release, pin an exact version (`version = "0.2.0"`) or a range they can raise (`version = "~> 0.2.0"`).
+For the bots to propose every release, pin an exact version (`version = "0.3.0"`) or a range they can raise (`version = "~> 0.3.0"`).
 
 ## Upgrading
+
+### Breaking change: new default names
+
+Module versions after 0.2.0 change the default `name_prefix` from `ztb` to `cc-securebrowser`.
+With that default prefix the stack is named `cc-secure-browser` (the name Cloud Certainty Hub
+uses); with any other prefix it is still `<name_prefix>-secure-browser`.
+
+This affects you only if you never set `name_prefix`. A plain upgrade would then rename every
+resource in the stack and the stack itself (`ztb-secure-browser` to `cc-secure-browser`), so
+Terraform would replace the stack, including the Cognito user pool and all its users.
+**Before you upgrade the module**, pin the old prefix:
+
+```hcl
+module "secure_browser" {
+  source = "cloudcertainty/secure-browser/aws"
+  # ...
+  name_prefix = "ztb"
+}
+```
+
+With `name_prefix = "ztb"` the stack name is still derived as `ztb-secure-browser`, so pinning
+`stack_name = "ztb-secure-browser"` as well is optional. If you set `name_prefix` or `stack_name`
+yourself, nothing changes for you. Check that `terraform plan` shows the stack updated in place,
+never replaced. Never change `name_prefix` on an existing stack.
+
+### Steps
 
 1. Raise the module version (or merge the Dependabot/Renovate pull request). That also raises `product_version`, which selects the new release's template. Don't set `product_version` yourself unless you want to stay on, or move to, a specific release.
 2. `terraform init -upgrade` and `terraform plan`: the plan changes the stack's `template_url`. Upgrading from a module version before update notifications also removes the old `ArtifactVersion` and `ImageUri` parameters from the stack; that is expected.

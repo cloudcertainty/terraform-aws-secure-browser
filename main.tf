@@ -57,11 +57,12 @@ locals {
   ]
 
   oidc_complete = var.oidc_issuer != "" && var.oidc_client_id != "" && var.oidc_client_secret_arn != ""
+  uses_oidc     = contains(["OIDC", "CloudCertaintyHub"], var.identity_provider)
   uses_saml     = contains(["IAMIdentityCenter", "SAML"], var.identity_provider)
 }
 
 resource "aws_cloudformation_stack" "this" {
-  name         = coalesce(var.stack_name, "${var.name_prefix}-secure-browser")
+  name         = coalesce(var.stack_name, var.name_prefix == "cc-securebrowser" ? "cc-secure-browser" : "${var.name_prefix}-secure-browser")
   template_url = local.template_url
   parameters   = local.parameters
   iam_role_arn = var.cloudformation_role_arn
@@ -87,8 +88,8 @@ resource "aws_cloudformation_stack" "this" {
       error_message = "All task_subnet_ids must belong to vpc_id."
     }
     precondition {
-      condition     = var.identity_provider != "OIDC" || local.oidc_complete
-      error_message = "identity_provider = OIDC requires oidc_issuer, oidc_client_id and oidc_client_secret_arn."
+      condition     = !local.uses_oidc || local.oidc_complete
+      error_message = "identity_provider = ${var.identity_provider} requires oidc_issuer, oidc_client_id and oidc_client_secret_arn."
     }
     precondition {
       condition     = local.uses_saml || var.saml_metadata_url == ""

@@ -3,6 +3,25 @@
 All notable changes to this module are documented here. The module version
 tracks the Cloud Certainty Secure Browser release it deploys by default.
 
+## 0.3.0
+
+- Deploys Cloud Certainty Secure Browser 0.3.0 by default (`product_version`): sign-in
+  through Cloud Certainty Hub, the `cc-securebrowser` default prefix for new installs, and
+  correct ordering of release candidates in update checks.
+- **Breaking: new default prefix.** `name_prefix` now defaults to `cc-securebrowser` (was `ztb`).
+  With that default the stack is named `cc-secure-browser`, the name Cloud Certainty Hub uses;
+  any other prefix still gives `<name_prefix>-secure-browser`. Only configurations that never set
+  `name_prefix` are affected: their stack would be replaced, which loses the Cognito user pool and
+  all its users. Before you upgrade, set `name_prefix = "ztb"`; the stack name then stays
+  `ztb-secure-browser`, so pinning `stack_name` is optional. Configurations that set
+  `name_prefix` or `stack_name` are not affected. See "Upgrading" in the README.
+- `identity_provider` accepts `CloudCertaintyHub`: users sign in through the Cloud Certainty Hub
+  in the account (single sign-on with every product installed through it). It is an extra option;
+  the default stays `IAMIdentityCenter` and the other values behave as before. Like `OIDC`, it
+  requires `oidc_issuer`, `oidc_client_id` and `oidc_client_secret_arn` (the hub provides them),
+  and `saml_metadata_url` must be empty. Needs a product release whose template has the
+  `CloudCertaintyHub` value; older templates refuse it at deploy time.
+
 ## 0.2.0
 
 - Deploys Cloud Certainty Secure Browser 0.2.0 by default (`product_version`), from the new AWS

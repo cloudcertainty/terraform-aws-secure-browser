@@ -26,11 +26,15 @@ run "defaults" {
   command = plan
 
   assert {
-    condition     = aws_cloudformation_stack.this.name == "ztb-secure-browser"
+    condition     = aws_cloudformation_stack.this.name == "cc-secure-browser"
     error_message = "unexpected stack name"
   }
   assert {
-    condition     = aws_cloudformation_stack.this.template_url == "https://cloudcertainty-secure-browser-us-east-1.s3.us-east-1.amazonaws.com/0.2.0/main.yaml"
+    condition     = aws_cloudformation_stack.this.parameters["NamePrefix"] == "cc-securebrowser"
+    error_message = "unexpected default NamePrefix"
+  }
+  assert {
+    condition     = aws_cloudformation_stack.this.template_url == "https://cloudcertainty-secure-browser-us-east-1.s3.us-east-1.amazonaws.com/0.3.0/main.yaml"
     error_message = "template URL must be the us-east-1 release bucket whatever the deploy Region: ${aws_cloudformation_stack.this.template_url}"
   }
   assert {
@@ -92,7 +96,7 @@ run "default_template_url_and_no_vendor_parameters" {
   command = plan
 
   assert {
-    condition     = aws_cloudformation_stack.this.template_url == "https://cloudcertainty-secure-browser-us-east-1.s3.us-east-1.amazonaws.com/0.2.0/main.yaml"
+    condition     = aws_cloudformation_stack.this.template_url == "https://cloudcertainty-secure-browser-us-east-1.s3.us-east-1.amazonaws.com/0.3.0/main.yaml"
     error_message = "unexpected template URL: ${aws_cloudformation_stack.this.template_url}"
   }
   assert {
@@ -196,6 +200,66 @@ run "saml_url_rejected_for_cognito_only" {
   expect_failures = [aws_cloudformation_stack.this]
 }
 
+run "hub_requires_all_oidc_settings" {
+  command = plan
+
+  variables {
+    identity_provider = "CloudCertaintyHub"
+    oidc_issuer       = "https://cognito-idp.eu-west-2.amazonaws.com/eu-west-2_HubPool1"
+    oidc_client_id    = "hubclient"
+  }
+
+  expect_failures = [aws_cloudformation_stack.this]
+}
+
+run "saml_url_rejected_for_hub" {
+  command = plan
+
+  variables {
+    identity_provider      = "CloudCertaintyHub"
+    oidc_issuer            = "https://cognito-idp.eu-west-2.amazonaws.com/eu-west-2_HubPool1"
+    oidc_client_id         = "hubclient"
+    oidc_client_secret_arn = "arn:aws:secretsmanager:eu-west-2:123456789012:secret:cloudcertainty-hub/cc-secure-browser/oidc-client-AbCdEf"
+    saml_metadata_url      = "https://example.com/metadata.xml"
+  }
+
+  expect_failures = [aws_cloudformation_stack.this]
+}
+
+run "hub_settings_mapped" {
+  command = plan
+
+  variables {
+    identity_provider      = "CloudCertaintyHub"
+    oidc_issuer            = "https://cognito-idp.eu-west-2.amazonaws.com/eu-west-2_HubPool1"
+    oidc_client_id         = "hubclient"
+    oidc_client_secret_arn = "arn:aws:secretsmanager:eu-west-2:123456789012:secret:cloudcertainty-hub/cc-secure-browser/oidc-client-AbCdEf"
+  }
+
+  assert {
+    condition     = aws_cloudformation_stack.this.parameters["IdentityProvider"] == "CloudCertaintyHub"
+    error_message = "identity_provider must be passed as IdentityProvider"
+  }
+  assert {
+    condition = (
+      aws_cloudformation_stack.this.parameters["OidcIssuer"] == "https://cognito-idp.eu-west-2.amazonaws.com/eu-west-2_HubPool1" &&
+      aws_cloudformation_stack.this.parameters["OidcClientId"] == "hubclient" &&
+      aws_cloudformation_stack.this.parameters["OidcClientSecretArn"] == "arn:aws:secretsmanager:eu-west-2:123456789012:secret:cloudcertainty-hub/cc-secure-browser/oidc-client-AbCdEf"
+    )
+    error_message = "the OIDC inputs must be passed for CloudCertaintyHub"
+  }
+}
+
+run "unknown_identity_provider_rejected" {
+  command = plan
+
+  variables {
+    identity_provider = "Hub"
+  }
+
+  expect_failures = [var.identity_provider]
+}
+
 run "subnet_outside_vpc_rejected" {
   command = plan
 
@@ -204,6 +268,49 @@ run "subnet_outside_vpc_rejected" {
   }
 
   expect_failures = [aws_cloudformation_stack.this]
+}
+
+# A custom name_prefix still derives the stack name, as in module versions up to 0.2.0.
+run "custom_prefix_derives_stack_name" {
+  command = plan
+
+  variables {
+    name_prefix = "acme"
+  }
+
+  assert {
+    condition     = aws_cloudformation_stack.this.name == "acme-secure-browser" && aws_cloudformation_stack.this.parameters["NamePrefix"] == "acme"
+    error_message = "a custom name_prefix must derive <name_prefix>-secure-browser"
+  }
+}
+
+# Installs on the old defaults keep their stack by pinning name_prefix alone.
+run "old_prefix_pinned_keeps_stack_name" {
+  command = plan
+
+  variables {
+    name_prefix = "ztb"
+  }
+
+  assert {
+    condition     = aws_cloudformation_stack.this.name == "ztb-secure-browser" && aws_cloudformation_stack.this.parameters["NamePrefix"] == "ztb"
+    error_message = "name_prefix = ztb must derive ztb-secure-browser"
+  }
+}
+
+# Pinning both old defaults explicitly also works.
+run "old_defaults_pinned" {
+  command = plan
+
+  variables {
+    name_prefix = "ztb"
+    stack_name  = "ztb-secure-browser"
+  }
+
+  assert {
+    condition     = aws_cloudformation_stack.this.name == "ztb-secure-browser" && aws_cloudformation_stack.this.parameters["NamePrefix"] == "ztb"
+    error_message = "pinned name_prefix and stack_name must be used as given"
+  }
 }
 
 run "invalid_prefix_rejected" {

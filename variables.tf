@@ -3,9 +3,9 @@
 ################################################################################
 
 variable "name_prefix" {
-  description = "Prefix for every resource the stack creates (lowercase letters, digits and hyphens; 2-20 characters, starting with a letter)."
+  description = "Prefix for every resource the stack creates (lowercase letters, digits and hyphens; 2-20 characters, starting with a letter). Module versions up to 0.2.0 defaulted to \"ztb\". Never change it on an existing stack: that replaces every named resource, including the Cognito user pool and all its users."
   type        = string
-  default     = "ztb"
+  default     = "cc-securebrowser"
 
   validation {
     condition     = can(regex("^[a-z][a-z0-9-]{1,19}$", var.name_prefix))
@@ -14,7 +14,7 @@ variable "name_prefix" {
 }
 
 variable "stack_name" {
-  description = "Name of the CloudFormation stack. Defaults to \"<name_prefix>-secure-browser\"."
+  description = "Name of the CloudFormation stack. Defaults to \"<name_prefix>-secure-browser\", except with the default name_prefix \"cc-securebrowser\", where it is \"cc-secure-browser\" (the name Cloud Certainty Hub uses). A new name replaces the stack, so never change it on an existing stack."
   type        = string
   default     = null
 }
@@ -76,13 +76,13 @@ variable "outbound_access" {
 ################################################################################
 
 variable "identity_provider" {
-  description = "How users sign in: IAMIdentityCenter, SAML, OIDC or CognitoOnly."
+  description = "How users sign in: IAMIdentityCenter, SAML, OIDC, CognitoOnly or CloudCertaintyHub. CloudCertaintyHub signs users in through the Cloud Certainty Hub in this account (single sign-on with every product installed through it); it needs the three OIDC inputs, which the hub provides."
   type        = string
   default     = "IAMIdentityCenter"
 
   validation {
-    condition     = contains(["IAMIdentityCenter", "SAML", "OIDC", "CognitoOnly"], var.identity_provider)
-    error_message = "identity_provider must be one of IAMIdentityCenter, SAML, OIDC, CognitoOnly."
+    condition     = contains(["IAMIdentityCenter", "SAML", "OIDC", "CognitoOnly", "CloudCertaintyHub"], var.identity_provider)
+    error_message = "identity_provider must be one of IAMIdentityCenter, SAML, OIDC, CognitoOnly, CloudCertaintyHub."
   }
 }
 
@@ -98,7 +98,7 @@ variable "saml_metadata_url" {
 }
 
 variable "oidc_issuer" {
-  description = "OIDC issuer URL (identity_provider = OIDC only)."
+  description = "OIDC issuer URL (identity_provider = OIDC or CloudCertaintyHub only)."
   type        = string
   default     = ""
 
@@ -109,13 +109,13 @@ variable "oidc_issuer" {
 }
 
 variable "oidc_client_id" {
-  description = "OIDC client ID (identity_provider = OIDC only)."
+  description = "OIDC client ID (identity_provider = OIDC or CloudCertaintyHub only)."
   type        = string
   default     = ""
 }
 
 variable "oidc_client_secret_arn" {
-  description = "ARN of a Secrets Manager secret whose SecretString is the OIDC client secret (identity_provider = OIDC only). CloudFormation resolves it at deploy time, so the secret is never stored in Terraform state."
+  description = "ARN of a Secrets Manager secret whose SecretString is the OIDC client secret (identity_provider = OIDC or CloudCertaintyHub only). CloudFormation resolves it at deploy time, so the secret is never stored in Terraform state."
   type        = string
   default     = ""
 
@@ -126,7 +126,7 @@ variable "oidc_client_secret_arn" {
 }
 
 variable "oidc_email_verified_claim" {
-  description = "OIDC claim that says whether the IdP verified the user's email (identity_provider = OIDC only). Users whose email is not verified are refused. Keep email_verified for Okta, Google, Auth0 and most IdPs; use xms_edov for Microsoft Entra ID."
+  description = "OIDC claim that says whether the IdP verified the user's email (identity_provider = OIDC only). Users whose email is not verified are refused. Keep email_verified for Okta, Google, Auth0 and most IdPs; use xms_edov for Microsoft Entra ID. Not used with CloudCertaintyHub (the hub's email_verified is mapped)."
   type        = string
   default     = "email_verified"
 
@@ -248,7 +248,7 @@ variable "update_notification_email" {
 variable "product_version" {
   description = "Release of Cloud Certainty Secure Browser to deploy. Selects the release's CloudFormation template, which pins the matching application artifacts and container image. Each module release defaults to the product release it was tested with, so upgrading usually means raising the module version."
   type        = string
-  default     = "0.2.0"
+  default     = "0.3.0"
 
   validation {
     condition     = can(regex("^[A-Za-z0-9._-]{1,64}$", var.product_version))
