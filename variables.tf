@@ -248,7 +248,7 @@ variable "update_notification_email" {
 variable "product_version" {
   description = "Release of Cloud Certainty Secure Browser to deploy. Selects the release's CloudFormation template, which pins the matching application artifacts and container image. Each module release defaults to the product release it was tested with, so upgrading usually means raising the module version."
   type        = string
-  default     = "0.3.0"
+  default     = "0.4.0"
 
   validation {
     condition     = can(regex("^[A-Za-z0-9._-]{1,64}$", var.product_version))

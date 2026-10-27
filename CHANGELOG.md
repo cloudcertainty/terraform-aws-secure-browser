@@ -3,6 +3,14 @@
 All notable changes to this module are documented here. The module version
 tracks the Cloud Certainty Secure Browser release it deploys by default.
 
+## 0.4.0
+
+- Deploys Cloud Certainty Secure Browser 0.4.0 by default (`product_version`): an admin can link
+  the deployment to their Cloud Certainty account (Admin, About & updates) with a one-time code
+  from [my.cloudcertainty.com](https://my.cloudcertainty.com). Optional; billing stays with AWS
+  Marketplace. No new inputs or outputs.
+- [Release notes](https://cloudcertainty.com/secure-browser/releases/0.4.0).
+
 ## 0.3.0
 
 - Deploys Cloud Certainty Secure Browser 0.3.0 by default (`product_version`): sign-in

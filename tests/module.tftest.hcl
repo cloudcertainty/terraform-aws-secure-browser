@@ -34,7 +34,7 @@ run "defaults" {
     error_message = "unexpected default NamePrefix"
   }
   assert {
-    condition     = aws_cloudformation_stack.this.template_url == "https://cloudcertainty-secure-browser-us-east-1.s3.us-east-1.amazonaws.com/0.3.0/main.yaml"
+    condition     = aws_cloudformation_stack.this.template_url == "https://cloudcertainty-secure-browser-us-east-1.s3.us-east-1.amazonaws.com/0.4.0/main.yaml"
     error_message = "template URL must be the us-east-1 release bucket whatever the deploy Region: ${aws_cloudformation_stack.this.template_url}"
   }
   assert {
@@ -96,7 +96,7 @@ run "default_template_url_and_no_vendor_parameters" {
   command = plan
 
   assert {
-    condition     = aws_cloudformation_stack.this.template_url == "https://cloudcertainty-secure-browser-us-east-1.s3.us-east-1.amazonaws.com/0.3.0/main.yaml"
+    condition     = aws_cloudformation_stack.this.template_url == "https://cloudcertainty-secure-browser-us-east-1.s3.us-east-1.amazonaws.com/0.4.0/main.yaml"
     error_message = "unexpected template URL: ${aws_cloudformation_stack.this.template_url}"
   }
   assert {
