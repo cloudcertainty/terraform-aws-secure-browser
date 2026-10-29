@@ -3,6 +3,14 @@
 All notable changes to this module are documented here. The module version
 tracks the Cloud Certainty Secure Browser release it deploys by default.
 
+## 0.4.1
+
+- Deploys Cloud Certainty Secure Browser 0.4.1 by default (`product_version`): installs with
+  `identity_provider = "OIDC"` or `"CloudCertaintyHub"` no longer fail at the Cognito app client
+  ("Invalid write attributes"), and the browser runs the latest Chromium security update. No new
+  inputs or outputs.
+- [Release notes](https://cloudcertainty.com/secure-browser/releases/0.4.1).
+
 ## 0.4.0
 
 - Deploys Cloud Certainty Secure Browser 0.4.0 by default (`product_version`): an admin can link
